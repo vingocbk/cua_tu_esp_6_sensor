@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "AppDebug.h"
 #include "WiFi.h"
+#include <HTTPClient.h>
 #include "WiFiClient.h"
 #include "WebServer.h"
 #include "ESPmDNS.h"
@@ -9,39 +10,40 @@
 #include "EEPROM.h"
 
 
-#define hallSensor1 4  //16
-#define hallSensor2 5  //14
-#define hallSensor3 13
-#define hallSensor4 13
-#define hallSensor5 13
-#define hallSensor6 13
-#define ledTestWifi 2
-#define inputFG 12
-#define PWM 14
-#define DIR 16
-#define BUTTON 15
-#define ANALOGREADBUTTON A0
+#define hallSensor1 4  
+#define hallSensor2 16  
+#define hallSensor3 17
+#define hallSensor4 26
+#define hallSensor5 27
+#define hallSensor6 14
+#define ledTestWifi 32
+#define inputFG 21
+#define PWM 18
+#define DIR 19
+// #define BUTTON 15
+#define ANALOGREADBUTTON 34
+#define PIN_CONFIG 25
+
+#define WL_MAC_ADDR_LENGTH 6
 
 #define SCALE_AUTO 0.95
 #define MINSPEED 8
-#define CONFIG 0
 
 #define RESPONSE_LENGTH 512     //do dai data nhan ve tu tablet
 #define EEPROM_WIFI_SSID_START 0
 #define EEPROM_WIFI_SSID_END 32
-#define EEPROM_WIFI_MAX_CLEAR 512
 #define EEPROM_WIFI_PASS_START 33
 #define EEPROM_WIFI_PASS_END 64
-#define EEPROM_WIFI_IP_START 65 
+#define EEPROM_WIFI_IP_START 65
 #define EEPROM_WIFI_IP_END 95
 #define EEPROM_WIFI_IP_SEND_START 96
 #define EEPROM_WIFI_IP_SEND_END 148
 #define EEPROM_SET_MODE_RUN_BEGIN 149
 #define EEPROM_DISTANT 150
-
 #define EEPROM_SET_PERCENT_OUT_LOW_SPEED 151
 #define EEPROM_SET_PERCENT_IN_LOW_SPEED 152
 #define EEPROM_SET_TIME_RETURN 153
+#define EEPROM_WIFI_MAX_CLEAR 512
 
 #define SSID_PRE_AP_MODE "AvyInterior-"
 #define PASSWORD_AP_MODE "123456789"
@@ -59,15 +61,8 @@
 #define VALUE_ERROR_ANALOG 100
 
 HTTPClient httpclient;
-ESP8266WebServer server(HTTP_PORT);
-
-// IPAddress ip(10, 10, 9, 160); // where xx is the desired IP Address
-// IPAddress gateway(10, 10, 9, 1); // set gateway to match your network
-// IPAddress subnet(255, 255, 255, 0); // set subnet mask to match your network
-
-//IPAddress ip(3, 3, 0, 157); // where xx is the desired IP Address
-//IPAddress gateway(3, 3, 0, 1); // set gateway to match your network
-//IPAddress subnet(255, 255, 255, 0); // set subnet mask to match your network
+// ESP8266WebServer server(HTTP_PORT);
+WebServer server(HTTP_PORT);
 
 
 
@@ -128,6 +123,10 @@ void inputSpeed();
 void dirhallSensor1();
 void dirhallSensor2();
 void dirhallSensor3();
+void dirhallSensor4();
+void dirhallSensor5();
+void dirhallSensor6();
+void loadDataBegin();
 void setpwmMotor();
 void tickerupdate();
 void caculateSpeed();
@@ -144,7 +143,6 @@ void setpwmStopMotor();
 void inputDistant();        //doc quang duong
 void resetDistant();
 void setTimeReturn();
-void SetupNomalMode();
 void SetupNetwork();
 void setSpeecControl();
 //config mode
@@ -159,7 +157,6 @@ void setupIP();
 
 
 
-//Ticker tickerSetApMode(setLedApMode, 200, 0);   //every 200ms
 Ticker tickerCaculateSpeed(caculateSpeed, 100);   //every 200ms
 Ticker SetPWMspeed(setpwmMotor, 10, 0, MICROS_MICROS);
 Ticker SetPWMStopSpeed(setpwmStopMotor, 10, 0, MICROS_MICROS);
