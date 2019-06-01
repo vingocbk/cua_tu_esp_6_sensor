@@ -1,11 +1,5 @@
 #include "cua_tu_esp_6_sensor.h"
 
-void handleOk() {
-    server.sendHeader("Access-Control-Allow-Headers", "*");
-    server.sendHeader("Access-Control-Allow-Methods", "*");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "application/json; charset=utf-8", "{\"status\":\"success\"}");
-}
 
 void handleRoot() {
     server.send(200, "text/html", "<h1>You are connected</h1>");
@@ -39,11 +33,62 @@ void setModeRunBegin(){
         //     setmoderunbegin = 3;
         // }
         setmoderunbegin = setmoderunstr.toInt();
+        setmoderunbeginchange = setmoderunbegin;
         ECHO("Writed: ");
         ECHOLN(setmoderunbegin);
         EEPROM.write(EEPROM_SET_MODE_RUN_BEGIN, char(setmoderunbegin));
         EEPROM.commit();
     }
+}
+
+
+void setPercentLowSpeed(){
+    server.send(200, "application/json; charset=utf-8", "{\"status\":\"success\"}");
+    StaticJsonBuffer<RESPONSE_LENGTH> jsonBuffer;
+    ECHOLN(server.arg("plain"));
+    JsonObject& rootData = jsonBuffer.parseObject(server.arg("plain"));
+    ECHOLN("--------------");
+    if (rootData.success()){
+        String setpercentoutstr = rootData["setpercentout"];
+        String setpercentinstr = rootData["setpercentin"];
+        percentLowSpeedIn = setpercentinstr.toInt();
+        percentLowSpeedOut = setpercentoutstr.toInt();
+        ECHO("Writed: ");
+        ECHO(percentLowSpeedOut);
+        ECHO(",");
+        ECHOLN(percentLowSpeedIn);
+        EEPROM.write(EEPROM_SET_PERCENT_OUT_LOW_SPEED, char(percentLowSpeedOut));
+        EEPROM.write(EEPROM_SET_PERCENT_IN_LOW_SPEED, char(percentLowSpeedIn));
+        EEPROM.commit();
+    }
+}
+
+
+void setTimeReturn(){
+    server.send(200, "application/json; charset=utf-8", "{\"status\":\"success\"}");
+    StaticJsonBuffer<RESPONSE_LENGTH> jsonBuffer;
+    ECHOLN(server.arg("plain"));
+    JsonObject& rootData = jsonBuffer.parseObject(server.arg("plain"));
+    ECHOLN("--------------");
+    if (rootData.success()){
+        String timeReturnstr = rootData["timereturn"];
+        time_return = timeReturnstr.toInt();
+        ECHO("Writed: ");
+        ECHO(time_return);
+        EEPROM.write(EEPROM_SET_TIME_RETURN, char(time_return));
+        EEPROM.commit();
+    }
+}
+
+void resetDistant(){
+    server.send(200, "text/html", "{\"status\":\"ok\"}");
+    EEPROM.write(EEPROM_DISTANT, 0);
+    EEPROM.commit();
+    countPulFGDistant = 0;
+    isSaveDistant = false;
+    fristRun = true;
+    countFrirstRun = 0;
+    ECHOLN("resetDistant");
 }
 
 
@@ -54,7 +99,7 @@ void loadDataBegin(){
     if(setmoderunbegin != 1 && setmoderunbegin != 2 && setmoderunbegin != 3 && setmoderunbegin != 4 && setmoderunbegin != 5){
         setmoderunbegin = 3;
         setmoderunbeginchange = setmoderunbegin;
-        ECHOLN("read EEPROM fail, auto set 3!");
+        ECHOLN("read setmoderunbegin EEPROM fail, auto set 3!");
     }else{
         ECHO("read EEPROM done: ");
     }
@@ -77,8 +122,8 @@ void loadDataBegin(){
         ECHO(time_return);
         ECHOLN("0 (ms)");
     }else{
-        time_return = 20;
-        ECHOLN("isSetTimeReurn fasle, auto set 200(ms)");
+        time_return = 30;
+        ECHOLN("isSetTimeReurn fasle, auto set 300(ms)");
     }
 
     if(EEPROM.read(EEPROM_SET_PERCENT_OUT_LOW_SPEED) != 255 && EEPROM.read(EEPROM_SET_PERCENT_OUT_LOW_SPEED) != 0
@@ -114,8 +159,8 @@ void Open(){
     Forward = true;
     daytay = false;
     digitalWrite(DIR, HIGH);
-    // SetPWMspeed.start();
-    // tickerCaculateSpeed.start();
+    SetPWMspeed.start();
+    tickerCaculateSpeed.start();
 }
 void OpenClick(){
     ECHOLN("open_click");
@@ -123,8 +168,8 @@ void OpenClick(){
     Forward = true;
     daytay = false;
     digitalWrite(DIR, HIGH);
-    // SetPWMspeed.start();
-    // tickerCaculateSpeed.start();
+    SetPWMspeed.start();
+    tickerCaculateSpeed.start();
 }
 
 void Close(){
@@ -134,8 +179,8 @@ void Close(){
     Forward = false;
     daytay = false;
     digitalWrite(DIR, LOW);
-    // SetPWMspeed.start();
-    // tickerCaculateSpeed.start();
+    SetPWMspeed.start();
+    tickerCaculateSpeed.start();
 }
 
 void CloseClick(){
@@ -144,15 +189,15 @@ void CloseClick(){
     Forward = false;
     daytay = false;
     digitalWrite(DIR, LOW);
-    // SetPWMspeed.start();
-    // tickerCaculateSpeed.start();
+    SetPWMspeed.start();
+    tickerCaculateSpeed.start();
 }
 
 void Stop(){
     ECHOLN("Stop");
     server.send(200, "text/html", "{\"status\":\"stop\"}");
-    // tickerCaculateSpeed.stop();
-    // SetPWMspeed.stop();
+    tickerCaculateSpeed.stop();
+    SetPWMspeed.stop();
     digitalWrite(PWM, LOW);
     delay(200);
     statusStop = false;
@@ -165,13 +210,13 @@ void Stop(){
         digitalWrite(DIR, HIGH);
         Forward = true;
     }
-    // SetPWMStopSpeed.start();
+    SetPWMStopSpeed.start();
 }
 
 void StopClick(){
     ECHOLN("Stop_click");
-    // tickerCaculateSpeed.stop();
-    // SetPWMspeed.stop();
+    tickerCaculateSpeed.stop();
+    SetPWMspeed.stop();
     digitalWrite(PWM, LOW);
     delay(200);
     statusStop = false;
@@ -184,7 +229,7 @@ void StopClick(){
         digitalWrite(DIR, HIGH);
         Forward = true;
     }
-    // SetPWMStopSpeed.start();
+    SetPWMStopSpeed.start();
 }
 
 
@@ -238,14 +283,18 @@ bool testWifi(String esid, String epass) {
     WiFi.begin(esid.c_str(), epass.c_str());
     int c = 0;
     ECHOLN("Waiting for Wifi to connect");
-    while (c < 20) {
+    while (c < 40) {
         if (WiFi.status() == WL_CONNECTED) {
             ECHOLN("\rWifi connected!");
             ECHO("Local IP: ");
             ECHOLN(WiFi.localIP());
-            digitalWrite(ledTestWifi, LOW);
+            digitalWrite(ledTestWifi, HIGH);
             StartNormalSever();
+            // tickerSetApMode.start();
             return true;
+        }
+        if(digitalRead(PIN_CONFIG) == LOW){
+            break;
         }
         delay(500);
         ECHO(".");
@@ -256,27 +305,22 @@ bool testWifi(String esid, String epass) {
     return false;
 }
 
+
+
+
+
 void StartNormalSever(){
-//     server.on("/", HTTP_GET, handleRoot);
-//     server.on("/getstatus", HTTP_GET, getStatus);
-//     server.on("/setmoderun", HTTP_POST, setModeRunBegin);
-//     server.on("/setlowspeed", HTTP_POST, setPercentLowSpeed);
-//     server.on("/settimereturn", HTTP_POST, setTimeReturn);
-//     server.on("/open", HTTP_GET, Open);
-//     server.on("/close", HTTP_GET, Close);
-//     server.on("/stop", HTTP_GET, Stop);
-//     server.on("/resetdistant", HTTP_GET, resetDistant);
-//     server.on("/", HTTP_OPTIONS, handleOk);
-//     server.on("/getstatus", HTTP_OPTIONS, handleOk);
-//     server.on("/setmoderun", HTTP_OPTIONS, handleOk);
-//     server.on("/setlowspeed", HTTP_OPTIONS, handleOk);
-//     server.on("/settimereturn", HTTP_OPTIONS, handleOk);
-//     server.on("/open", HTTP_OPTIONS, handleOk);
-//     server.on("/close", HTTP_OPTIONS, handleOk);
-//     server.on("/stop", HTTP_OPTIONS, handleOk);
-//     server.on("/resetdistant", HTTP_OPTIONS, handleOk);
-//     server.begin();
-//     ECHOLN("HTTP server started");
+    server.on("/", HTTP_GET, handleRoot);
+    server.on("/getstatus", HTTP_GET, getStatus);
+    server.on("/setmoderun", HTTP_POST, setModeRunBegin);
+    server.on("/setlowspeed", HTTP_POST, setPercentLowSpeed);
+    server.on("/settimereturn", HTTP_POST, setTimeReturn);
+    server.on("/resetdistant", HTTP_GET, resetDistant);
+    server.on("/open", HTTP_GET, Open);
+    server.on("/close", HTTP_GET, Close);
+    server.on("/stop", HTTP_GET, Stop);
+    server.begin();
+    ECHOLN("HTTP server started");
     
 }
 
@@ -319,8 +363,8 @@ void caculateSpeed(){
     }
 
 
-    //ECHO("van toc: ");
-    //ECHOLN(speed);
+    // ECHO("van toc: ");
+    // ECHOLN(speed);
     if(abs(speed) <= MINSPEED && timecaculateSpeed >= 3){   //sau 3 lan chay thi moi tinh den van toc
         ECHOLN("Da dung lai");
         tickerCaculateSpeed.stop();
@@ -348,14 +392,20 @@ void caculateSpeed(){
         }
         else if(fristRun == true && countFrirstRun == 2){
             countPulDistant = abs(countPulFGDistant);
+            ECHO("countPulDistant1: ");
+            ECHOLN(countPulDistant);
             EEPROM.write(EEPROM_DISTANT, countPulDistant);
             EEPROM.commit();
+            ECHO("countPulDistant1: ");
+            ECHOLN(countPulFGDistant);
             isSaveDistant = true;
             if(countPulFGDistant < 0){
                 countPulFGDistant = 0;
                 prepul = 0;
             }
             fristRun = false;
+            ECHO("countPulDistant2: ");
+            ECHOLN(countPulDistant);
         }
 
 
@@ -368,7 +418,7 @@ void caculateSpeed(){
             countPulFGDistant = countPulDistant;
             flag_send_status_when_use_hand = true;
         }
-
+        ECHOLN("reset countPulDistant");
         
         if(Forward == true){
             digitalWrite(DIR, LOW);     //cho dong co quay nghich
@@ -379,6 +429,7 @@ void caculateSpeed(){
         }
 
         timecaculateSpeed = 0;
+        ECHOLN("Da dung lai 2");
         SetPWMStopSpeed.start();    
     }
 }
@@ -387,7 +438,7 @@ void setpwmMotor(){
     countSetPwm++;
     switch(setmoderunbeginchange){
         case 1:{
-            if(modeFast == false){ //ti le PWM la 3 HIGH 1 LOW
+            if(modeFast == false){ //ti le PWM la 4 HIGH 1 LOW
                 switch (countSetPwm){
                     case 1: {
                         digitalWrite(PWM, HIGH);
@@ -405,7 +456,7 @@ void setpwmMotor(){
             break;
         }
         case 2:{
-            if(modeFast == false){ //ti le PWM la 3 HIGH 1 LOW
+            if(modeFast == false){ //ti le PWM la 3 HIGH 2 LOW
                 switch (countSetPwm){
                     case 1: {
                         digitalWrite(PWM, HIGH);
@@ -426,7 +477,7 @@ void setpwmMotor(){
             break;
         }
         case 3:{
-            if(modeFast == false){ //ti le PWM la 3 HIGH 1 LOW
+            if(modeFast == false){ //ti le PWM la 2 HIGH 3 LOW
                 switch (countSetPwm){
                     case 1: {
                         digitalWrite(PWM, HIGH);
@@ -441,22 +492,13 @@ void setpwmMotor(){
                         break;
                     }
                 }
-
-
-                // if(countSetPwm == 1){
-                //     digitalWrite(PWM, LOW);
-                // }else if(countSetPwm == 3){
-                //     digitalWrite(PWM, HIGH);
-                // }else if(countSetPwm == 4){
-                //     countSetPwm = 0;
-                // }
             }else{                //ti le PWM la 1 HIGH 3 LOW
                 digitalWrite(PWM, HIGH);
             } 
             break;
         }
         case 4:{
-            if(modeFast == false){ //ti le PWM la 3 HIGH 1 LOW
+            if(modeFast == false){ //ti le PWM la 1 HIGH 4 LOW
                 switch (countSetPwm){
                     case 1: {
                         digitalWrite(PWM, HIGH);
@@ -652,8 +694,6 @@ void StartConfigServer(){
     ECHOLN("[HttpServerH][startConfigServer] Begin create new server...");
     server.on("/", HTTP_GET, handleRoot);
     server.on("/config", HTTP_POST, ConfigMode);
-    server.on("/", HTTP_OPTIONS, handleOk);
-    server.on("/config", HTTP_OPTIONS, handleOk);
     server.begin();
     ECHOLN("[HttpServerH][startConfigServer] HTTP server started");
 }
@@ -678,7 +718,7 @@ void ConfigMode(){
     JsonObject& rootData = jsonBuffer.parseObject(server.arg("plain"));
     ECHOLN("--------------");
     tickerSetApMode.stop();
-    digitalWrite(ledTestWifi, HIGH);
+    digitalWrite(ledTestWifi, LOW);
     if (rootData.success()) {
         server.sendHeader("Access-Control-Allow-Headers", "*");
         server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -766,43 +806,28 @@ void setupIP(){
 
 
 void dirhallSensor1(){      //nhan du lieu tu cam bien ben ngoai
-    // if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 2){
-    //         ECHOLN("true1");
-    //     Forward = true;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }else if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 3){
-    //     ECHOLN("false1");
-    //     Forward = false;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }
     if(loai_bien_giong_nhau_cua_cam_bien != 1){
         loai_bien_giong_nhau_cua_cam_bien = 1;
-         ECHOLN("1");
-
-        // if(Forward == true){
-        //     countPulFGDistant++;
-        // }else{
-        //     countPulFGDistant--;
-        // }
+        ECHOLN("1");
+        if(Forward == true){
+            countPulFGDistant++;
+        }else{
+            countPulFGDistant--;
+        }
 
         if(daytay == true && statusStop == true){
-            //ECHOLN("1");
             // loai_bien_giong_nhau_cua_cam_bien = 0;
             if(countHall2 == true){
                 //cho dong co chay thuan
-                countHall1 = false;
                 countHall2 = false;
-                countHall3 = false;
-                //ECHOLN("open");
-                // OpenClick();
+                ECHOLN("open");
+                OpenClick();
             }
-            else if(countHall3 == true){
+            else if(countHall6 == true){
                 //cho dong co chay nghich
-                countHall1 = false;
-                countHall2 = false;
-                countHall3 = false;
-                //ECHOLN("close");
-                // CloseClick();
+                countHall6 = false;
+                ECHOLN("close");
+                CloseClick();
             }
             else{
                 countHall1 = true;
@@ -813,46 +838,29 @@ void dirhallSensor1(){      //nhan du lieu tu cam bien ben ngoai
 }
 
 void dirhallSensor2(){
-    // if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 3){
-    //         ECHOLN("true2");
-    //     Forward = true;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }else if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 1){
-    //     ECHOLN("false2");
-    //     Forward = false;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }
-
-
     if(loai_bien_giong_nhau_cua_cam_bien != 2){
         loai_bien_giong_nhau_cua_cam_bien = 2;
-         ECHOLN("2");
-        
+        ECHOLN("2");
         if(Forward == true){
             countPulFGDistant++;
         }else{
             countPulFGDistant--;
         }
-        
+
         // ECHOLN(co untPulFGDistant);
         if(daytay == true && statusStop == true){
-            //ECHOLN("2");
             // loai_bien_giong_nhau_cua_cam_bien = 0;
             if(countHall3 == true){
                 //cho dong co chay thuan
-                countHall1 = false;
-                countHall2 = false;
                 countHall3 = false;
-                //ECHOLN("open");
-                // OpenClick();
+                ECHOLN("open");
+                OpenClick();
             }
             else if(countHall1 == true){
                 //cho dong co chay nghich
                 countHall1 = false;
-                countHall2 = false;
-                countHall3 = false;
-                //ECHOLN("close");
-                // CloseClick();
+                ECHOLN("close");
+                CloseClick();
             }
             else{
                 countHall2 = true;
@@ -861,44 +869,28 @@ void dirhallSensor2(){
     }
 }
 void dirhallSensor3(){
-    // if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 1){
-    //         ECHOLN("true3");
-    //     Forward = true;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }else if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 2){
-    //     ECHOLN("false3");
-    //     Forward = false;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }
-
     if(loai_bien_giong_nhau_cua_cam_bien != 3){
         loai_bien_giong_nhau_cua_cam_bien = 3;
-         ECHOLN("3");
-
-        // if(Forward == true){
-        //     countPulFGDistant++;
-        // }else{
-        //     countPulFGDistant--;
-        // }
+        ECHOLN("3");
+        if(Forward == true){
+            countPulFGDistant++;
+        }else{
+            countPulFGDistant--;
+        }
 
         if(daytay == true && statusStop == true){
-            //ECHOLN("3");
             // loai_bien_giong_nhau_cua_cam_bien = 0;
-            if(countHall1 == true){
+            if(countHall4 == true){
                 //cho dong co chay thuan
-                countHall1 = false;
-                countHall2 = false;
-                countHall3 = false;
-                //ECHOLN("open");
-                // OpenClick();
+                countHall4 = false;
+                ECHOLN("open");
+                OpenClick();
             }
             else if(countHall2 == true){
                 //cho dong co chay nghich
-                countHall1 = false;
                 countHall2 = false;
-                countHall3 = false;
-                //ECHOLN("close");
-                // CloseClick();
+                ECHOLN("close");
+                CloseClick();
             }
             else{
                 countHall3 = true;
@@ -908,151 +900,124 @@ void dirhallSensor3(){
 }
 
 void dirhallSensor4(){
-    // if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 1){
-    //         ECHOLN("true3");
-    //     Forward = true;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }else if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 2){
-    //     ECHOLN("false3");
-    //     Forward = false;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }
-
     if(loai_bien_giong_nhau_cua_cam_bien != 4){
         loai_bien_giong_nhau_cua_cam_bien = 4;
-         ECHOLN("4");
-
-        // if(Forward == true){
-        //     countPulFGDistant++;
-        // }else{
-        //     countPulFGDistant--;
-        // }
+        ECHOLN("4");
+        if(Forward == true){
+            countPulFGDistant++;
+        }else{
+            countPulFGDistant--;
+        }
 
         if(daytay == true && statusStop == true){
-            //ECHOLN("3");
             // loai_bien_giong_nhau_cua_cam_bien = 0;
-            if(countHall1 == true){
+            if(countHall5 == true){
                 //cho dong co chay thuan
-                countHall1 = false;
-                countHall2 = false;
-                countHall3 = false;
-                //ECHOLN("open");
-                // OpenClick();
+                countHall5 = false;
+                ECHOLN("open");
+                OpenClick();
             }
-            else if(countHall2 == true){
+            else if(countHall3 == true){
                 //cho dong co chay nghich
-                countHall1 = false;
-                countHall2 = false;
                 countHall3 = false;
-                //ECHOLN("close");
-                // CloseClick();
+                ECHOLN("close");
+                CloseClick();
             }
             else{
-                countHall3 = true;
+                countHall4 = true;
             }
         }
     }
 }
 
 void dirhallSensor5(){
-    // if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 1){
-    //         ECHOLN("true3");
-    //     Forward = true;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }else if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 2){
-    //     ECHOLN("false3");
-    //     Forward = false;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }
-
     if(loai_bien_giong_nhau_cua_cam_bien != 5){
         loai_bien_giong_nhau_cua_cam_bien = 5;
-         ECHOLN("5");
-
-        // if(Forward == true){
-        //     countPulFGDistant++;
-        // }else{
-        //     countPulFGDistant--;
-        // }
+        ECHOLN("5");
+        if(Forward == true){
+            countPulFGDistant++;
+        }else{
+            countPulFGDistant--;
+        }
 
         if(daytay == true && statusStop == true){
-            //ECHOLN("3");
             // loai_bien_giong_nhau_cua_cam_bien = 0;
-            if(countHall1 == true){
+            if(countHall6 == true){
                 //cho dong co chay thuan
-                countHall1 = false;
-                countHall2 = false;
-                countHall3 = false;
-                //ECHOLN("open");
-                // OpenClick();
+                countHall6 = false;
+                ECHOLN("open");
+                OpenClick();
             }
-            else if(countHall2 == true){
+            else if(countHall4 == true){
                 //cho dong co chay nghich
-                countHall1 = false;
-                countHall2 = false;
-                countHall3 = false;
-                //ECHOLN("close");
-                // CloseClick();
+                countHall4 = false;
+                ECHOLN("close");
+                CloseClick();
             }
             else{
-                countHall3 = true;
+                countHall5 = true;
             }
         }
     }
 }
 
 void dirhallSensor6(){
-    // if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 1){
-    //         ECHOLN("true3");
-    //     Forward = true;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }else if(daytay == true && statusStop == true && luu_trang_thai_cua_sensor_ngay_khi_dung_lai == 2){
-    //     ECHOLN("false3");
-    //     Forward = false;
-    //     luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
-    // }
-
     if(loai_bien_giong_nhau_cua_cam_bien != 6){
         loai_bien_giong_nhau_cua_cam_bien = 6;
-         ECHOLN("6");
-
-        // if(Forward == true){
-        //     countPulFGDistant++;
-        // }else{
-        //     countPulFGDistant--;
-        // }
+        ECHOLN("6");
+        if(Forward == true){
+            countPulFGDistant++;
+        }else{
+            countPulFGDistant--;
+        }
 
         if(daytay == true && statusStop == true){
-            //ECHOLN("3");
             // loai_bien_giong_nhau_cua_cam_bien = 0;
             if(countHall1 == true){
                 //cho dong co chay thuan
                 countHall1 = false;
-                countHall2 = false;
-                countHall3 = false;
-                //ECHOLN("open");
-                // OpenClick();
+                ECHOLN("open");
+                OpenClick();
             }
-            else if(countHall2 == true){
+            else if(countHall5 == true){
                 //cho dong co chay nghich
-                countHall1 = false;
-                countHall2 = false;
-                countHall3 = false;
-                //ECHOLN("close");
-                // CloseClick();
+                countHall5 = false;
+                ECHOLN("close");
+                CloseClick();
             }
             else{
-                countHall3 = true;
+                countHall6 = true;
             }
         }
     }
 }
 
+
+void inputSpeed(){
+    if(Forward == true){
+        countPulFG++;
+    }else{
+        countPulFG--;
+    }
+    // ECHOLN(countPulFG);
+}
+
+void setSpeedControl(){
+    // ECHOLN(countPulFGDistant > (percentLowSpeedOut/100)*countPulDistant);
+    if(fristRun == false && Forward == true && countPulFGDistant < ((100 - (float)percentLowSpeedOut)/100)*countPulDistant){
+        modeFast = true;
+    }else if(fristRun == false && Forward == false && countPulFGDistant > ((float)percentLowSpeedIn/100)*countPulDistant){
+        modeFast = true;       
+    }else{
+        modeFast = false;
+    }
+}
+
 void tickerupdate(){
     tickerCaculateSpeed.update();
-    // SetPWMspeed.update();
-    // SetPWMStopSpeed.update();
-    // tickerSetApMode.update();
+    SetPWMspeed.update();
+    SetPWMStopSpeed.update();
+    tickerSetApMode.update();
 }
 
 
@@ -1060,7 +1025,7 @@ void tickerupdate(){
 void setup() {
   // put your setup code here, to run once:
     Serial.begin(115200);
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_WIFI_MAX_CLEAR);
 
     ECHOLN("");
     ECHOLN("START!!!");
@@ -1075,24 +1040,31 @@ void setup() {
     pinMode(hallSensor5, INPUT_PULLUP);
     pinMode(hallSensor6, INPUT_PULLUP);
     pinMode(ledTestWifi, OUTPUT);
-    digitalWrite(ledTestWifi, HIGH);
+    digitalWrite(ledTestWifi, LOW);
+    
+    
+    loadDataBegin();
+    SetupNetwork();
+
+
     attachInterrupt(digitalPinToInterrupt(hallSensor1), dirhallSensor1, RISING);
     attachInterrupt(digitalPinToInterrupt(hallSensor2), dirhallSensor2, RISING);
     attachInterrupt(digitalPinToInterrupt(hallSensor3), dirhallSensor3, RISING);
     attachInterrupt(digitalPinToInterrupt(hallSensor4), dirhallSensor4, RISING);
     attachInterrupt(digitalPinToInterrupt(hallSensor5), dirhallSensor5, RISING);
     attachInterrupt(digitalPinToInterrupt(hallSensor6), dirhallSensor6, RISING);
+    attachInterrupt(digitalPinToInterrupt(inputFG), inputSpeed, FALLING);
     
-    loadDataBegin();
-    SetupNetwork();
-
 
 
 }
 
 void loop() {
     // put your main code here, to run repeatedly:
-
+    if (Flag_Normal_Mode == true && WiFi.status() != WL_CONNECTED){
+        digitalWrite(ledTestWifi, LOW);
+        testWifi(esid, epass);
+    }    
 
 
     //hold to config mode
@@ -1102,7 +1074,7 @@ void loop() {
     if(digitalRead(PIN_CONFIG) == LOW && (time_click_button + CONFIG_HOLD_TIME) <= millis()){
         time_click_button = millis();
         // StopClick();
-        digitalWrite(ledTestWifi, HIGH);
+        digitalWrite(ledTestWifi, LOW);
         Flag_Normal_Mode = false;
         tickerSetApMode.start();
         SetupConfigMode();
@@ -1110,7 +1082,7 @@ void loop() {
     }
 
 
-
+    setSpeedControl();
     tickerupdate();
     server.handleClient();
 

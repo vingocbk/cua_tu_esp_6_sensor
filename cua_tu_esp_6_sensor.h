@@ -43,7 +43,7 @@
 #define EEPROM_SET_PERCENT_OUT_LOW_SPEED 151
 #define EEPROM_SET_PERCENT_IN_LOW_SPEED 152
 #define EEPROM_SET_TIME_RETURN 153
-#define EEPROM_WIFI_MAX_CLEAR 512
+#define EEPROM_WIFI_MAX_CLEAR 256
 
 #define SSID_PRE_AP_MODE "AvyInterior-"
 #define PASSWORD_AP_MODE "123456789"
@@ -69,19 +69,19 @@ WebServer server(HTTP_PORT);
 
 int countPulFG = 0;
 int countPulFGDistant = 0;
-int setmoderunbegin = 1; // nhanh nhat
-int setmoderunbeginchange = 1;      //bien nay co tac dung thay doi toc do cham dan
-uint32_t countPulDistant;                                 
+uint8_t setmoderunbegin = 1; // nhanh nhat
+uint8_t setmoderunbeginchange = 1;      //bien nay co tac dung thay doi toc do cham dan
+int countPulDistant;                                 
 uint8_t countSetPwm = 0;        //bien nay co tac dung dieu chinh toc do dong co
 uint32_t countTime = 0;          //tinh thoi gian, timer 2 la 10us, vi the 100ms bien nay se co gia tri la 10.000
 uint8_t sau_1_s = 0;
 uint8_t timecaculateSpeed = 0;  //sau 500ms moi bat dau tinh van toc
 int pul, prepul = 0;
-int percentLowSpeedIn = 5;          //gia tri set mac dinh ban dau l 5% moi dau.
-int percentLowSpeedOut = 5;
+int percentLowSpeedIn = 15;          //gia tri set mac dinh ban dau la 15% moi dau.
+int percentLowSpeedOut = 15;
 float speed;
 bool statusStop = true;     //true la he thong dang dung im, false la he thong dang chuyen dong
-bool countHall1 = false, countHall2 = false, countHall3 = false;
+bool countHall1 = false, countHall2 = false, countHall3 = false, countHall4 = false, countHall5 = false, countHall6 = false;
 bool modeFast = false;
 bool Forward = true;    //chieu quay thuan
 bool fristRun = true;   //kiem tra lan chay dau tinh khoang cach chieu dai tu
@@ -114,7 +114,6 @@ int valueAnalogRead = 0;
 int prevalueAnalogRead = 0;
 
 //normal mode
-void handleOk();
 void handleRoot();
 void getStatus();
 void setModeRunBegin();
@@ -144,7 +143,7 @@ void inputDistant();        //doc quang duong
 void resetDistant();
 void setTimeReturn();
 void SetupNetwork();
-void setSpeecControl();
+void setSpeedControl();
 //config mode
 void setLedApMode();
 void SetupConfigMode();             //phat wifi
