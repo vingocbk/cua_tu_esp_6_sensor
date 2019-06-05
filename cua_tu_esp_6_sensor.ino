@@ -141,7 +141,14 @@ void loadDataBegin(){
         ECHOLN("isSavePercentLowSpeed fasle!");
     }
 
-    valueAnalogRead = analogRead(ANALOGREADBUTTON);
+
+	countLedLight = 255;
+	ledcWrite(LED_CHANNEL_R, countLedLight);
+
+
+
+
+    valueAnalogRead = analogRead(ANALOG_READ_BUTTON);
     prevalueAnalogRead = valueAnalogRead;
 
     // ECHOLN("--------------------");
@@ -150,6 +157,15 @@ void loadDataBegin(){
     // ECHOLN(int(((100 - (float)percentLowSpeedOut)/100)*countPulDistant - 2*(setmoderunbegin - 1) + 2));
     // ECHOLN(int(((100 - (float)percentLowSpeedOut)/100)*countPulDistant - 2*(setmoderunbegin - 1) + 4));
 
+    for(int i = 1; i <= 5; i++){
+        valueTouchSensorFix += touchRead(PIN_TOUCH_SENSOR);
+        if(i == 5){
+            valueTouchSensorFix = valueTouchSensorFix/5;
+            ECHO("valueTouchSensorFix = ");
+            ECHOLN(valueTouchSensorFix);
+            break;
+        }
+    }
 }
 
 void Open(){
@@ -161,6 +177,11 @@ void Open(){
     digitalWrite(DIR, HIGH);
     SetPWMspeed.start();
     tickerCaculateSpeed.start();
+	//bat den led
+	if(countLedLight == 0){
+		tickerSetPwmLedLightOff.stop();
+		tickerSetPwmLedLightOn.start();
+	}
 }
 void OpenClick(){
     ECHOLN("open_click");
@@ -170,6 +191,11 @@ void OpenClick(){
     digitalWrite(DIR, HIGH);
     SetPWMspeed.start();
     tickerCaculateSpeed.start();
+	//bat den led
+	if(countLedLight == 0){
+		tickerSetPwmLedLightOff.stop();
+		tickerSetPwmLedLightOn.start();
+	}
 }
 
 void Close(){
@@ -337,26 +363,6 @@ void caculateSpeed(){
     speed = (pul - prepul)/(0.1*6);
     prepul = pul;
     
-    //neu vuot qua khoang hanh trinh thi se dung lai
-    // if(fristRun == false && (countPulFGDistant < stop_dau || countPulFGDistant > (countPulDistant - stop_cuoi))){
-    //     if(countFrirstRun == 10){
-    //         ECHOLN("Da dung lai do nam ngoai khoang hanh trinh");
-    //         tickerCaculateSepeed.stop();
-    //         SetPWMspeed.stop();
-    //         digitalWrite(PWM, LOW);
-    //         statusStop = false;
-    //         if(Forward == true){
-    //             digitalWrite(DIR, LOW);     //cho dong co quay nghich
-    //             Forward = false;
-    //         }else{
-    //             digitalWrite(DIR, HIGH);
-    //             Forward = true;
-    //         }
-
-    //         timecaculateSpeed = 0;
-    //         SetPWMStopSpeed.start();
-    //     }
-    // }
 
     if(countFrirstRun == 2 && countPulFG > stop_dau && countPulFG < (countPulDistant - stop_cuoi)){        //countFrirstRun = 2 la luc bat dau qua trinh chay nhanh (modeFast = true)
         countFrirstRun = 10;        //lan dau tien chay nhanh
@@ -392,33 +398,27 @@ void caculateSpeed(){
         }
         else if(fristRun == true && countFrirstRun == 2){
             countPulDistant = abs(countPulFGDistant);
-            ECHO("countPulDistant1: ");
-            ECHOLN(countPulDistant);
             EEPROM.write(EEPROM_DISTANT, countPulDistant);
             EEPROM.commit();
-            ECHO("countPulDistant1: ");
-            ECHOLN(countPulFGDistant);
             isSaveDistant = true;
             if(countPulFGDistant < 0){
                 countPulFGDistant = 0;
                 prepul = 0;
             }
             fristRun = false;
-            ECHO("countPulDistant2: ");
-            ECHOLN(countPulDistant);
         }
 
 
-
-
         if(fristRun == false && countPulFGDistant <= 3){
-            countPulFGDistant = 0;
+            // //tat den
+			// countLedOn = 0;
+			// ledcWrite(LED_CHANNEL_R, countLedOn);
+			countPulFGDistant = 0;
             flag_send_status_when_use_hand = true;
         }else if(fristRun == false && (countPulDistant -3) <= countPulFGDistant){
             countPulFGDistant = countPulDistant;
             flag_send_status_when_use_hand = true;
         }
-        ECHOLN("reset countPulDistant");
         
         if(Forward == true){
             digitalWrite(DIR, LOW);     //cho dong co quay nghich
@@ -429,7 +429,6 @@ void caculateSpeed(){
         }
 
         timecaculateSpeed = 0;
-        ECHOLN("Da dung lai 2");
         SetPWMStopSpeed.start();    
     }
 }
@@ -574,8 +573,7 @@ void setpwmStopMotor(){
             }
             httpclient.end();
             flag_send_status_when_use_hand = false;
-
-
+            flag_reset_value_analog = true;
             
         }
         else if(flag_send_status_when_use_hand == true && Forward == false){    //dang o trang thai mo cua
@@ -604,7 +602,7 @@ void setpwmStopMotor(){
             flag_send_status_when_use_hand = false;
         }
         //reset lai vi tri cua button analog
-        flag_reset_value_analog = true;
+        // flag_reset_value_analog = true;
         // valueAnalogRead = analogRead(ANALOGREADBUTTON);
         // prevalueAnalogRead = valueAnalogRead;
         
@@ -615,6 +613,24 @@ void setpwmStopMotor(){
 
 void setLedApMode() {
     digitalWrite(ledTestWifi, !digitalRead(ledTestWifi));
+}
+
+void setPwmLedLighton(){
+	countLedLight++;
+	if(countLedLight > 255){
+		countLedLight = 255;
+		return;
+	}
+	ledcWrite(LED_CHANNEL_R, countLedLight);
+}
+
+void setPwmLedLightoff(){
+	countLedLight--;
+	if(countLedLight < 0){
+		countLedLight = 0;
+		return;
+	}
+	ledcWrite(LED_CHANNEL_R, countLedLight);
 }
 
 bool connectToWifi(String nssid, String npass, String ip, String ipsend) {
@@ -805,7 +821,7 @@ void setupIP(){
 }
 
 
-void dirhallSensor1(){      //nhan du lieu tu cam bien ben ngoai
+void IRAM_ATTR dirhallSensor1(){      //nhan du lieu tu cam bien ben ngoai
     if(loai_bien_giong_nhau_cua_cam_bien != 1){
         loai_bien_giong_nhau_cua_cam_bien = 1;
         ECHOLN("1");
@@ -837,7 +853,7 @@ void dirhallSensor1(){      //nhan du lieu tu cam bien ben ngoai
     
 }
 
-void dirhallSensor2(){
+void IRAM_ATTR dirhallSensor2(){
     if(loai_bien_giong_nhau_cua_cam_bien != 2){
         loai_bien_giong_nhau_cua_cam_bien = 2;
         ECHOLN("2");
@@ -868,7 +884,7 @@ void dirhallSensor2(){
         }
     }
 }
-void dirhallSensor3(){
+void IRAM_ATTR dirhallSensor3(){
     if(loai_bien_giong_nhau_cua_cam_bien != 3){
         loai_bien_giong_nhau_cua_cam_bien = 3;
         ECHOLN("3");
@@ -899,7 +915,7 @@ void dirhallSensor3(){
     }
 }
 
-void dirhallSensor4(){
+void IRAM_ATTR dirhallSensor4(){
     if(loai_bien_giong_nhau_cua_cam_bien != 4){
         loai_bien_giong_nhau_cua_cam_bien = 4;
         ECHOLN("4");
@@ -930,7 +946,7 @@ void dirhallSensor4(){
     }
 }
 
-void dirhallSensor5(){
+void IRAM_ATTR dirhallSensor5(){
     if(loai_bien_giong_nhau_cua_cam_bien != 5){
         loai_bien_giong_nhau_cua_cam_bien = 5;
         ECHOLN("5");
@@ -961,7 +977,7 @@ void dirhallSensor5(){
     }
 }
 
-void dirhallSensor6(){
+void IRAM_ATTR dirhallSensor6(){
     if(loai_bien_giong_nhau_cua_cam_bien != 6){
         loai_bien_giong_nhau_cua_cam_bien = 6;
         ECHOLN("6");
@@ -993,13 +1009,64 @@ void dirhallSensor6(){
 }
 
 
-void inputSpeed(){
+void IRAM_ATTR inputSpeed(){
     if(Forward == true){
         countPulFG++;
     }else{
         countPulFG--;
     }
     // ECHOLN(countPulFG);
+}
+
+
+void checkTouchSensor(){
+    if(abs(millis() - time_check_touch_sensor) > TIME_CHECK_TOUCH_SENSOR){
+        time_check_touch_sensor = millis();
+        for(int i = 0; i <= 2; i++){
+            valueTouchSensor = touchRead(PIN_TOUCH_SENSOR);
+            if(abs(valueTouchSensorFix - valueTouchSensor) <= VALUE_ERROR_TOUCH_SENSOR){
+                return;
+            }
+        }
+
+        ECHOLN("buttonClick");
+        digitalWrite(PWM, LOW);
+        daytay = false;
+        delay(500);
+        if(statusStop == false){
+            StopClick();
+        }
+        else if(Forward == false && statusStop == true){
+            CloseClick();
+        }else{
+            OpenClick();
+        }
+    }
+}
+
+
+void checkAnalogReadButton(){
+    //reset_value_analog
+    //flag_reset_value_analog dung de reset lai gia tri bien tro: pre = current
+    //flag = true thi se reset, con bang false la da reset roi, vi the load gia tri phai la bang false
+    if(flag_reset_value_analog == true){
+        valueAnalogRead = analogRead(ANALOG_READ_BUTTON);
+        prevalueAnalogRead = valueAnalogRead;
+        flag_reset_value_analog = false;
+    }
+
+    //analogRead
+    if(flag_reset_value_analog == false && statusStop == true && Forward == true && abs(millis() - time_check_analog_pin) > TIME_CHECK_ANALOG){
+        time_check_analog_pin = millis();
+
+        for(int i = 0; i <= 1; i++){
+            valueAnalogRead = analogRead(ANALOG_READ_BUTTON);
+            if(abs(valueAnalogRead - prevalueAnalogRead) <= VALUE_ERROR_ANALOG){
+                return;
+            }
+        }
+        OpenClick();
+    }
 }
 
 void setSpeedControl(){
@@ -1018,6 +1085,8 @@ void tickerupdate(){
     SetPWMspeed.update();
     SetPWMStopSpeed.update();
     tickerSetApMode.update();
+	tickerSetPwmLedLightOn.update();
+	tickerSetPwmLedLightOff.update();
 }
 
 
@@ -1026,12 +1095,13 @@ void setup() {
   // put your setup code here, to run once:
     Serial.begin(115200);
     EEPROM.begin(EEPROM_WIFI_MAX_CLEAR);
-
+    ledcAttachPin(PIN_LED_LIGHT_R, LED_CHANNEL_R); // analog pin to channel 1
+    ledcSetup(LED_CHANNEL_R, 12000, 8); // 12 kHz PWM, 8-bit resolution
     ECHOLN("");
     ECHOLN("START!!!");
     pinMode(DIR, OUTPUT);
     pinMode(PWM, OUTPUT);
-    pinMode(PIN_CONFIG, INPUT);
+    pinMode(PIN_CONFIG, INPUT_PULLUP);
     pinMode(inputFG, INPUT_PULLUP);
     pinMode(hallSensor1, INPUT_PULLUP);
     pinMode(hallSensor2, INPUT_PULLUP);
@@ -1082,6 +1152,18 @@ void loop() {
     }
 
 
+	//tat den led khi quay ve
+	if(statusStop == false  && countPulFGDistant <= 10){
+		if(countLedLight == 255){
+			countLedLight = 254;
+			tickerSetPwmLedLightOn.stop();
+			tickerSetPwmLedLightOff.start();
+		}
+	}
+
+
+    checkTouchSensor();
+    checkAnalogReadButton();
     setSpeedControl();
     tickerupdate();
     server.handleClient();

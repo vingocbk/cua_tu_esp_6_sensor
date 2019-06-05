@@ -20,13 +20,18 @@
 #define inputFG 21
 #define PWM 18
 #define DIR 19
-// #define BUTTON 15
-#define ANALOGREADBUTTON 34
+#define ANALOG_READ_BUTTON 34
 #define PIN_CONFIG 25
+#define PIN_TOUCH_SENSOR T5
+#define PIN_LED_LIGHT_R 5
+#define PIN_LED_LIGHT_G 22
+#define PIN_LED_LIGHT_B 23
+#define LED_CHANNEL_R 1
+#define LED_CHANNEL_G 2
+#define LED_CHANNEL_B 3
+
 
 #define WL_MAC_ADDR_LENGTH 6
-
-#define SCALE_AUTO 0.95
 #define MINSPEED 8
 
 #define RESPONSE_LENGTH 512     //do dai data nhan ve tu tablet
@@ -58,14 +63,17 @@
 //#define PASS "hpt12345"
 #define CONFIG_HOLD_TIME 5000
 #define TIME_CHECK_ANALOG 500
-#define VALUE_ERROR_ANALOG 100
+#define VALUE_ERROR_ANALOG 300
+
+#define TIME_CHECK_TOUCH_SENSOR 100
+#define VALUE_ERROR_TOUCH_SENSOR 10
 
 HTTPClient httpclient;
 // ESP8266WebServer server(HTTP_PORT);
 WebServer server(HTTP_PORT);
 
 
-
+uint8_t ledB = A18; 
 
 int countPulFG = 0;
 int countPulFGDistant = 0;
@@ -97,6 +105,7 @@ uint8_t countFrirstRun = 0;  //dem so lan va cham
 uint32_t count_stop_motor = 0;
 uint32_t time_click_button = 0;
 uint32_t time_check_analog_pin = 0;
+uint32_t time_check_touch_sensor = 0;
 uint32_t pre_time_click_button = 0;
 uint8_t first_octet;
 uint8_t second_octet;
@@ -112,19 +121,21 @@ int luu_trang_thai_cua_sensor_ngay_khi_dung_lai = 0;
 
 int valueAnalogRead = 0;
 int prevalueAnalogRead = 0;
-
+uint16_t valueTouchSensorFix = 0;			//gia tri load touch sensor sau moi lan reset
+uint16_t valueTouchSensor = 0;				//gia tri load touch sensor lien tuc
+int countLedLight = 0;						//bien cho den sang tu tu khi mo tu
 //normal mode
 void handleRoot();
 void getStatus();
 void setModeRunBegin();
 void setPercentLowSpeed();
-void inputSpeed();
-void dirhallSensor1();
-void dirhallSensor2();
-void dirhallSensor3();
-void dirhallSensor4();
-void dirhallSensor5();
-void dirhallSensor6();
+void IRAM_ATTR inputSpeed();
+void IRAM_ATTR dirhallSensor1();
+void IRAM_ATTR dirhallSensor2();
+void IRAM_ATTR dirhallSensor3();
+void IRAM_ATTR dirhallSensor4();
+void IRAM_ATTR dirhallSensor5();
+void IRAM_ATTR dirhallSensor6();
 void loadDataBegin();
 void setpwmMotor();
 void tickerupdate();
@@ -139,11 +150,15 @@ void CloseClick();
 void Stop();
 void StopClick();
 void setpwmStopMotor();
+void setPwmLedLighton();
+void setPwmLedLightoff();
 void inputDistant();        //doc quang duong
 void resetDistant();
 void setTimeReturn();
 void SetupNetwork();
 void setSpeedControl();
+void checkTouchSensor();
+void checkAnalogReadButton();
 //config mode
 void setLedApMode();
 void SetupConfigMode();             //phat wifi
@@ -156,7 +171,9 @@ void setupIP();
 
 
 
-Ticker tickerCaculateSpeed(caculateSpeed, 100);   //every 200ms
+Ticker tickerCaculateSpeed(caculateSpeed, 100);   //every 100ms
 Ticker SetPWMspeed(setpwmMotor, 10, 0, MICROS_MICROS);
 Ticker SetPWMStopSpeed(setpwmStopMotor, 10, 0, MICROS_MICROS);
 Ticker tickerSetApMode(setLedApMode, 200, 0);   //every 200ms
+Ticker tickerSetPwmLedLightOn(setPwmLedLighton, 20, 260);	//every 20ms
+Ticker tickerSetPwmLedLightOff(setPwmLedLightoff, 10, 260);
